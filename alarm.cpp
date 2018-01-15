@@ -1,5 +1,5 @@
 #include <command.hpp>	// custom class I wrote
-#include "sound.h"	// custom class I wrote (essentially just a simple use of SDL-mixer)
+#include "sound.hpp"	// custom class I wrote (essentially just a simple use of SDL-mixer)
 #include <ctime>
 #include <unistd.h>
 #include <fstream>
