@@ -34,7 +34,7 @@ int main(int argc, char *argv[]) {
 					}
 				}
 			}
-			else{
+			else {
 				printf("Error 4: Improper call\n");
 				return 4;
 			}
