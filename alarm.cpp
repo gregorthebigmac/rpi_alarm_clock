@@ -1,30 +1,33 @@
-#include <command.hpp>	// custom class I wrote
-#include "sound.hpp"	// custom class I wrote (essentially just a simple use of SDL-mixer)
-#include <ctime>
+#include "sound.hpp"
+#include <iostream>
 #include <unistd.h>
-#include <fstream>
+#include <ctime>
+#include <vector>
 #include <sstream>
+#include <command.hpp>
 
 using std::cout;
 using std::endl;
-using std::vector;
 using std::string;
+using std::vector;
 
-bool alarm_is_engaged = false;
-enum weight { underweight, nominal, overweight };
+// convert string to float
+template<typename T>
+T StringToNumber(const std::string& numberAsString) {
+	T valor;
+	std::stringstream stream(numberAsString);
+	stream >> valor;
+	if (stream.fail()) {
+		cout << "Error: failed to cast str_data to float! [" << numberAsString << "]." << endl;
+	}
+	else {
+		return valor;
+	}
+}
 
-command cmd;
+bool alarm_is_engaged;
+double weight;
 
-void check_alarm_time();
-void get_current_time();
-void decide_sleep_time();
-int calculate_sleep_time();
-enum weight check_weight();
-void alarm_engage();
-void disengage_alarm();
-int parse_string(string &str_data, char target_char);
-
-// current time. It's checked frequently enough that it warrants global variables.
 int c_year	 = 0,
 	c_month	 = 0,
 	c_day	 = 0,
@@ -32,7 +35,6 @@ int c_year	 = 0,
 	c_minute = 0,
 	c_second = 0;
 
-// target time. It's checked frequently enough that it warrants global variables.
 int a_year	 = 0,
 	a_month	 = 0,
 	a_day	 = 0,
@@ -40,55 +42,61 @@ int a_year	 = 0,
 	a_minute = 0,
 	a_second = 0;
 
-int main(int argc, char *argv[]) {
-	while(true) {
-		if (alarm_is_engaged)
-			check_weight();
-		else {
-			check_alarm_time();
-			get_current_time();
-			decide_sleep_time();
-		}
-	}
-	return 0;
-}
+sound snd;
+command cmd;
 
-void check_alarm_time() {
-	// first we get the target time, then we compare that to the current time
-	vector<string>alarm_data;
-	// get alarm time
-	std::ifstream fin;
-	fin.open("./dataalarm.time");
-	if (fin.is_open()) {
-		while(!fin.eof()) {
-			string temp_data;
-			getline(fin, temp_data);
-			alarm_data.push_back(temp_data);
-		}
-		fin.close();
-	}
-	else { cout << "failed to open [alarm.time]. please check your file." << endl; }
-	if (alarm_data.size() > 0) {
-		bool finished = false;
-		while (!finished) {
-			if (alarm_data.at(0).size() > 0) {
-				a_year 	 = parse_string(alarm_data[0], '-');
-				a_month  = parse_string(alarm_data[0], '-');
-				a_day 	 = parse_string(alarm_data[0], ' ');
-				a_hour 	 = parse_string(alarm_data[0], ':');
-				a_minute = parse_string(alarm_data[0], ':');
-				a_second = parse_string(alarm_data[0], ' ');
-				if ((a_year > -1) && (a_month > -1) && (a_day > -1) && (a_hour > -1) && (a_minute > -1) && (a_second > -1)) {
-					alarm_data.clear();
-					alarm_data.resize(0);
-					finished = true;
+double weight_check();
+void get_time_now();
+int get_second_diff();
+void mark_time();
+int counter = 0;
+
+int main(int argc, char *argv[]) {
+	cout << "starting..." << endl;
+	snd.set_vol(0);
+	while (true) {
+		weight = weight_check();
+		cout << "weight reads [" << weight << "]" << endl;
+		mark_time();
+		while ((weight > 149.9) || (weight < 109.9)) {
+			get_time_now();
+			if (snd.music_is_playing()) {
+				if (get_second_diff() > 5) {
+					snd.vol_up();
+					mark_time();
 				}
 			}
+			else {
+				snd.play("/home/gfox/cpp/vscode/alarm_clock/song.ogg");
+				mark_time();
+			}
+			weight = weight_check();
+			cout << "weight reads [" << weight << "]" << endl;
+			if (weight < 110.0)
+				break;
+		}
+		while ((weight > 109.9) && (weight < 149.9)) {
+			mark_time();
+			if (snd.music_is_playing())
+				snd.stop();
+			weight = weight_check();
+			cout << "weight reads [" << weight << "]" << endl;
 		}
 	}
 }
 
-void get_current_time() {
+double weight_check() {
+	cout << "getting weight from arduino..." << endl;
+	cmd.exec("sudo /home/gfox/cpp/vscode/serial/btest getweight", true);
+	vector<string> serial_weight;
+	serial_weight = cmd.get_terminal_feedback(counter);
+	counter++;
+	double weight = StringToNumber<double>(serial_weight[0]);
+	cout << "weight reads [" << weight << "]" << endl;
+	return weight;
+}
+
+void get_time_now() {
 	time_t t = time(0);
 	struct tm * current_time = localtime ( & t );
 	c_year	 = current_time->tm_year + 1900;
@@ -99,60 +107,20 @@ void get_current_time() {
 	c_second = current_time->tm_sec;
 }
 
-void decide_sleep_time() {
-	if (a_year < (c_year + 1)) {
-		if (a_month < (c_month + 1)) {
-			if (a_day < (c_day + 1)) {
-				if (a_hour < (c_hour + 1)) {
-					if (a_minute < c_minute) {
-						while (!alarm_is_engaged) {
-							if ((a_second - c_second) < 60 ) {
-								if (a_second <= c_second) { alarm_engage(); }
-								else { check_weight();} 
-							}
-							else { check_weight(); }
-							get_current_time();
-						}
-					}
-					else { sleep(calculate_sleep_time()); }
-				}
-			}
-		}
-	}
+void mark_time() {
+	time_t t = time(0);
+	struct tm * current_time = localtime ( & t );
+	a_year	 = current_time->tm_year + 1900;
+	a_month	 = current_time->tm_mon + 1;
+	a_day	 = current_time->tm_mday;
+	a_hour	 = current_time->tm_hour;
+	a_minute = current_time->tm_min;
+	a_second = current_time->tm_sec;
 }
 
-int calculate_sleep_time() {
-	int day_diff = (a_day - c_day) * (3600 * 24);
-	int hr_diff = (a_hour - c_hour) * 3600;
-	int min_diff = (a_minute - c_minute) * 60;
-	int sec_diff = a_second - c_second;
-	float total_diff = day_diff + hr_diff + min_diff + sec_diff;
-	return (total_diff * 0.5);
-}
-
-enum weight check_weight() {
-	cmd.exec("sudo /home/gfox/cpp/vscode/serial/btest getweight", true);
-	vector<string> serial_weight;
-	serial_weight = cmd.get_terminal_feedback(0);
-}
-
-void alarm_engage() {
-	
-}
-
-void disengage_alarm() {
-	
-}
-
-int parse_string(string &str_data, char target_char) {
-	int found = str_data.find(target_char);
-	if (found != string::npos) {
-		string temp_data = str_data.substr(0, found);
-		str_data.erase(0, (found+1));
-		std::stringstream str2i(temp_data);
-		int target_int;
-		str2i >> target_int;
-		return target_int;
-	}
-	else { cout << "Error: [" << target_char << "] not found in string [" << str_data << "]." << endl; }
+int get_second_diff() {
+	int result = abs(a_second - c_second);
+	result = result + ( abs(a_minute - c_minute) * 60 );
+	result = result + ( abs(a_hour - c_hour) * 3600 );
+	return result;
 }
