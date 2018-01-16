@@ -15,8 +15,8 @@ class command {
         virtual ~command();
 
         // getters
-        std::vector<std::string>get_terminal_feedback(int index) { return m_terminal_feedback; }
-        std::vector<std::string>get_errors(int index) { return m_errors; }
+        std::vector<std::string>get_terminal_feedback() { return m_terminal_feedback; }
+        std::vector<std::string>get_errors() { return m_errors; }
         bool still_busy() { return m_still_working; }
         
         // meat and potatoes
