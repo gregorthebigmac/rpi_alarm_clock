@@ -5,11 +5,11 @@
 #include <SDL/SDL.h>
 #include <SDL/SDL_mixer.h>
 
-class sound {
+class sound {	
+public:
 	sound();	// ctor
 	virtual ~sound();	// dtor
 	
-public:
 	// getters
 	int get_vol() { return m_volume; }
 	int get_vol_increment() { return m_vol_increment; }
@@ -41,6 +41,8 @@ sound::sound() {
 	set_vol(0);
 	set_vol_increment(10);
 }
+
+sound::~sound() {}
 
 void sound::set_vol(int vol) {
 	m_volume = vol;
@@ -78,7 +80,7 @@ void sound::stop() {
 		Mix_HaltMusic();
 	if (m_music)
 		Mix_FreeMusic(m_music);
-	Mix_CloseAudio();
+	set_vol(0);
 }
 
 #endif
