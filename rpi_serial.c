@@ -21,7 +21,7 @@ int main(int argc, char *argv[]) {
 					serWrite(ser, serial_out, 10);
 				}
 				else {
-					printf("Error 2: Not found\n", argv[1]);
+					printf("Error 2: %s Not found\n", argv[1]);
 					return 2;
 				}
 				bool got_serial = false;
