@@ -20,7 +20,6 @@ public:
 };
 
 command::command() {}
-
 command::~command() {}
 
 void exec(const char *cmd, bool realtime_terminal_feedback) {
