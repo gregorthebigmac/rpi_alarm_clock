@@ -23,4 +23,8 @@ This library is how the RPi talks to the Arduino (and vice/versa) via the serial
 
 This program also depends on the **SDL mixer 1.2 library.** I'll get a link to the download for the lib when I get some time to go back and confirm where I found it for the RPi. Just make sure you get the **DEVELOPER** library, not the regular one!
 
+**UPDATE:** I don't think you *need* the developer library to make that work, but if getting the regular version gives you any problems, try using the developer version and see if that fixes it. I'll gladly accept any feedback regarding this (or anything else in this project, for that matter).
+
 This is how the alarm plays music/sfx/etc. You can use whichever audio output you want (it should have no problems working with either the 3.5mm jack or the HDMI. However, I only tested this with the 3.5mm jack, so be advised).
+
+If you have any questions, feedback, concerns, bithces, gripes, complaints, etc. feel free to leave comments here, and I'll see what I can do. Also, if you wish to contribute to the code, by all means, do so! Send a merge request if you got something that works, and as long as it works, I'll either approve it, or give it its own branch!
