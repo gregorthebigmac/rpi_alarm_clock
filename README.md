@@ -1,7 +1,7 @@
 
 # Important Details Follow! #
 
-Okay, so this program will seem a bit complicated and weird, so let me break it down as simply as I can. The main program (i.e. starting point) for this whole thing is in alarm.cpp. From there, if you're experienced in C/C++ you should be able to find your way around the code fairly easily. For the rest of you, there are a decent number of dependencies, and I included installation instruction links, but I won't be detailing how to install them here--I can barely remember how *I* installed half of these libs on my own machine, tbh. That said, if you're C/C++ savvy, here's the gist of what you need to know.
+Okay, so this program will seem a bit complicated and weird, so let me break it down as simply as I can. The main program (i.e. starting point) for this whole thing is in alarm.cpp. From there, if you're experienced in C/C++ you should be able to find your way around the code fairly easily. For the rest of you, there are a decent number of dependencies, and I included installation instruction links, but I won't be detailing how to install them here--I can barely remember how I installed half of these libs on my own machine, tbh. That said, if you're C/C++ savvy, here's the gist of what you need to know.
 
 rpi_serial.c is the only source file that needs to be compiled by itself and made into its own *separate* binary. Compile it with the following command:
 
