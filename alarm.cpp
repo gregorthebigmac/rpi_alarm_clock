@@ -12,140 +12,139 @@ using std::endl;
 using std::string;
 using std::vector;
 
-// convert string to float
-template<typename T>
-T StringToNumber(const std::string& numberAsString) {
-	T valor;
-	std::stringstream stream(numberAsString);
-	stream >> valor;
-	if (stream.fail())
-		cout << "Error: failed to cast str_data to float! [" << numberAsString << "]." << endl;
-	else
-		return valor;
-}
-
-// simple time struct to keep track of:
-// - alarm time
-// - beginning time tracker
-// - end time tracker
-// beginning and end time trackers are for counting every 10 seconds before increasing volume
+// simple struct for tracking time
 struct time_tracker {
-	int hour;
-	int minute;
-	int second;
+	int hr, min, sec;
 };
 
-time_tracker tt_alarm, tt_begin, tt_end;
+// functions
+int weight_check();
+void get_time_now(time_tracker &tt_time);
+void load_alarm_time();
+int parse_string(string &str_data, char target_char);
+bool is_alarm_now();
+void write_error_to_file(string s_error);
+
+// debug function(s)
+void debug_string(string message);
+
+time_tracker tt_alarm_begin, tt_alarm_end;	// establishing window of alarm period
+time_t t_comp_begin, t_comp_end;	// used for tracking passing of time
+time_tracker tt_time_now;	// current time
 sound snd;
 command cmd;
 
-// functions
-double weight_check();
-void get_time_now();
-int get_second_diff();
-int parse_string(string &str_data, char target_char);
-void mark_time();
-void load_alarm_time();
-bool alarm_time_check();
-
-// global variables
-const double overweight = 170.0;
-const double underweight = 120.0;
-double actual_weight;
-int counter = 0;
-string alarm_filename = "data/alarm.ogg";
+// global variables... deal with it!
+const int overweight  = 182000;	// these are raw ADC readings from load cells, not converted to human-readable units!
+const int underweight = 158000;	// these are raw ADC readings from load cells, not converted to human-readable units!
+int weight_reading;
+string path = "/home/$USER/cpp/vscode/alarm_clock/";
+string alarm_filename = path + "data/alarm.ogg";
 bool time_to_wake_up = false;
+bool special_time = false;
 
 int main(int argc, char *argv[]) {
-	cout << "starting..." << endl;
+	//debug_string("entering main()...");
 	snd.set_vol(0);
+	snd.set_vol_increment(5);
+	load_alarm_time();
 	while (true) {
-		load_alarm_time();
-		get_time_now();
-		alarm_time_check();
-		if (time_to_wake_up) {	
-			actual_weight = weight_check();
-			mark_time();
-			while ((actual_weight >= overweight) || (actual_weight <= underweight)) {
-				cout << "weight=[" << actual_weight << "] ALARM!" << endl;
-				cout << "vol=[" << snd.get_vol() << "]" << endl;
-				get_time_now();
+		//debug_string("entering main loop...");
+		get_time_now(tt_time_now);
+		time_to_wake_up = is_alarm_now();
+		if (time_to_wake_up) {
+			weight_reading = weight_check();
+			cout << "weight = [" << weight_reading << "] ";
+			if ((weight_reading > underweight) && (weight_reading < overweight)) {
+				cout << "NOMINAL" << endl;
 				if (snd.is_playing()) {
-					if (get_second_diff() > 5) {
+					snd.set_vol(0);
+					snd.stop();
+				}
+			}
+			else if (weight_reading < underweight) {
+				cout << "UNDER WEIGHT! ALARM!" << endl;
+				if (snd.is_playing()) {
+					t_comp_end = time(0);	// setting to time now
+					if (t_comp_end > t_comp_begin) {
 						snd.vol_up();
-						mark_time();
+						cout << "vol = [" << snd.get_vol() << "]" << endl;
+						t_comp_begin = time(0);
 					}
 				}
 				else {
-					snd.play(alarm_filename.c_str());
-					mark_time();
+					t_comp_begin = time(0);
+					snd.play(alarm_filename);
+					cout << "vol = [" << snd.get_vol() << "]" << endl;
 				}
-				actual_weight = weight_check();
 			}
-			while ((actual_weight > underweight) && (actual_weight < overweight)) {
-				cout << "weight=[" << actual_weight << "] NOMINAL" << endl;
-				cout << "vol=[" << snd.get_vol() << "]" << endl;
-				mark_time();
-				if (snd.is_playing())
-					snd.stop();
-				actual_weight = weight_check();
+			else if (weight_reading > overweight) {
+				cout << "OVER WEIGHT! ALARM!" << endl;
+				if (snd.is_playing()) {
+					t_comp_end = time(0);	// setting to time now
+					if (t_comp_end > t_comp_begin) {
+						snd.vol_up();
+						cout << "vol = [" << snd.get_vol() << "]" << endl;
+						t_comp_begin = time(0);
+					}
+				}
+				else {
+					t_comp_begin = time(0);
+					snd.play(alarm_filename);
+					cout << "vol = [" << snd.get_vol() << "]" << endl;
+				}
 			}
+			else { cout << "Weight check failed! I don't know how I got here..." << endl; }
 		}
-		else {
-			usleep(1000 * 60 * 1000);	// sleep for 60 sec
-		}
+		else { cout << "zzz..." << endl; }
+		//debug_string("about to sleep for 2 sec...");
+		usleep(1000 * 2000);	// sleep for 2 sec
+		//debug_string("done sleeping...");
+		cout << endl;
 	}
+	return 0;
 }
 
-double weight_check() {
-	cmd.exec("sudo ./rpi_serial getweight", false);
+int weight_check() {
+	//debug_string("entering weight_check()...");
 	vector<string> serial_weight;
-	serial_weight = cmd.get_terminal_feedback();
-	double weight = StringToNumber<double>(serial_weight[0]);
+	vector<string> error_list;
+	//debug_string("entering command...");
+	string cmd_str = "sudo " + path + "rpi_serial getweight";
+	cmd.exec(cmd_str.c_str(), serial_weight, error_list, true);
+	//debug_string("[ok]");
+	if (error_list.size() > 0) {
+		//debug_string("error encountered.");
+		for (int i = 0; i < error_list.size(); i++) {
+			cout << error_list[i] << endl;
+		}
+		//debug_string("exiting weight_check() with error: -1");
+		return -1;
+	}
+	//debug_string("[ok]");
+	std::stringstream str2i(serial_weight[0]);
+	int weight = 0;
+	str2i >> weight;
+	//debug_string("exiting weight_check() [ok]");
 	return weight;
 }
 
-void get_time_now() {
+void get_time_now(time_tracker &tt_time) {
+	//debug_string("entering get_time_now()...");
 	time_t t = time(0);
 	struct tm * current_time = localtime ( & t );
-	tt_end.hour	  = current_time->tm_hour;
-	tt_end.minute = current_time->tm_min;
-	tt_end.second = current_time->tm_sec;
-}
-
-void mark_time() {
-	time_t t = time(0);
-	struct tm * current_time = localtime ( & t );
-	tt_begin.hour	= current_time->tm_hour;
-	tt_begin.minute = current_time->tm_min;
-	tt_begin.second = current_time->tm_sec;
-}
-
-int parse_string(string &str_data, char target_char) {
-	int found = str_data.find(target_char);
-	if (found != string::npos) {
-		string temp_data = str_data.substr(0, found);
-		str_data.erase(0, (found + 1));
-		std::stringstream str2i(temp_data);
-		int target_int;
-		str2i >> target_int;
-		return target_int;
-	}
-	else
-		cout << "Error: [" << target_char << "] not found in string [" << str_data << "]." << endl;
-}
-
-int get_second_diff() {
-	int result = abs(tt_end.second - tt_begin.second);
-	result = result + ( abs(tt_end.minute - tt_begin.minute) * 60 );
-	result = result + ( abs(tt_end.hour - tt_begin.hour) * 3600 );
-	return result;
+	tt_time.hr = current_time->tm_hour;
+	tt_time.min = current_time->tm_min;
+	tt_time.sec = current_time->tm_sec;
+	//debug_string("exiting get_time_now()...");
 }
 
 void load_alarm_time() {
+	//debug_string("entering load_alarm_time()...");
 	vector<string> alarm_data;
 	std::ifstream fin;
-	fin.open("data/alarm.time");
+	string alarm_time_filename = path + "data/alarm.time";
+	fin.open(alarm_time_filename.c_str());
 	if (fin.is_open()) {
 		while(!fin.eof()) {
 			string temp_data;
@@ -154,49 +153,115 @@ void load_alarm_time() {
 		}
 		fin.close();
 	}
-	else
-		cout << "failed to open [alarm.time]. please check your file!" << endl;
+	else {
+		write_error_to_file("failed to open [alarm.time]. Please check your file!");
+		//debug_string("exiting load_alarm_time() with error.");
+		return;
+	}
 	if (alarm_data.size() > 0) {
 		bool finished = false;
 		while (!finished) {
 			if (alarm_data.at(0).size() > 0) {
-				tt_alarm.hour	= parse_string(alarm_data[0], ':');
-				tt_alarm.minute = parse_string(alarm_data[0], ':');
-				tt_alarm.second = parse_string(alarm_data[0], ' ');
-				if ((tt_alarm.hour > -1) && (tt_alarm.minute > -1) && (tt_alarm.second > -1))
+				tt_alarm_begin.hr  = parse_string(alarm_data[0], ':');
+				tt_alarm_begin.min = parse_string(alarm_data[0], ':');
+				tt_alarm_begin.sec = parse_string(alarm_data[0], ' ');
+				if ((tt_alarm_begin.hr > -1) && (tt_alarm_begin.min > -1) && (tt_alarm_begin.sec > -1)) {
+					tt_alarm_end = tt_alarm_begin;
+					if (tt_alarm_end.hr > 21)
+						tt_alarm_end.hr = tt_alarm_end.hr -22;
+					else
+						tt_alarm_end.hr = tt_alarm_end.hr + 2;
 					finished = true;
+				}
 				else {
-					cout << "Error: Alarm time failed to parse from file. Please check file!" << endl;
+					string alarm_error = "Error: Alarm time failed to parse from file. Please check data/alarm.time!";
+					cout << alarm_error << endl;
+					write_error_to_file(alarm_error);
 					finished = true;
 				}
 			}
-			else
-				cout << "Error: alarm.time appears to be empty! Please check file!" << endl;
+			else {
+				write_error_to_file("Error: alarm.time appears to be empty! Please check data/alarm.time!");
+				finished = true;
+			}
 		}
 	}
-	else
-		cout << "Error: alarm.time appears to be empty! Please check file!" << endl;
+	else { write_error_to_file("Error: alarm.time appears to be empty! Please check data/alarm.time!"); }
+	//debug_string("exiting load_alarm_time()...");
 }
 
-bool alarm_time_check() {
-	cout << "alarm time is:   " << tt_alarm.hour << ":" << tt_alarm.minute << ":" << tt_alarm.second << endl;
-	cout << "current time is: " << tt_end.hour << ":" << tt_end.minute << ":" << tt_end.second << endl;
-	if ((tt_end.hour - tt_alarm.hour) == 0) {
-		if ((tt_end.minute - tt_alarm.minute) > -1) {
-			time_to_wake_up = true;
-			cout << "Time to wake up!" << endl;
-		}
-		else {
-			time_to_wake_up = false;
-			cout << "zzz..." << endl;
-		}
-	}
-	else if ((tt_end.hour - tt_alarm.hour) > 0) {
-		cout << "Time to wake up!" << endl;
-		time_to_wake_up = true;
+int parse_string(string &str_data, char target_char) {
+	//debug_string("entering parse_string()...");
+	int found = str_data.find(target_char);
+	if (found != string::npos) {
+		string temp_data = str_data.substr(0, found);
+		str_data.erase(0, (found + 1));
+		std::stringstream str2i(temp_data);
+		int target_int;
+		str2i >> target_int;
+		//debug_string("exiting parse_string()...");
+		return target_int;
 	}
 	else {
-		cout << "zzz..." << endl;
-		time_to_wake_up = false;
+		string s_char;
+		s_char[0] = target_char;
+		string s_error = "Error: [" + s_char + "] not found in string [" + str_data + "].";
+		write_error_to_file(s_error);
+		//debug_string("exiting parse_string()...");
+		return -1;
 	}
+}
+
+bool is_alarm_now() {
+	//debug_string("entering is_alarm_now()...");
+	bool alarm_is_now = false;
+	bool time_adjusted = false;
+	
+	cout << "alarm time is: " << tt_alarm_begin.hr << ":" << tt_alarm_begin.min << ":" << tt_alarm_begin.sec << endl;
+	cout << "time now is: " << tt_time_now.hr << ":" << tt_time_now.min << ":" << tt_time_now.sec << endl;
+
+	if ((tt_alarm_begin.hr > 21) && (tt_time_now.hr < 2)) {
+		time_adjusted = true;
+		tt_time_now.hr = tt_time_now.hr + 24;
+		tt_alarm_end.hr = tt_alarm_end.hr + 24;
+	}
+	if (tt_time_now.hr == tt_alarm_begin.hr) {
+		if (tt_time_now.min >= tt_alarm_begin.min)
+			alarm_is_now = true;
+		else
+			alarm_is_now = false;
+	}
+	else if (tt_time_now.hr == tt_alarm_end.hr) {
+		if (tt_time_now.min <= tt_alarm_end.min)
+			alarm_is_now = true;
+		else
+			alarm_is_now = false;
+	}
+	else if ((tt_time_now.hr > tt_alarm_begin.hr) && (tt_time_now.hr < tt_alarm_end.hr))
+		alarm_is_now = true;
+	else
+		alarm_is_now = false;
+	
+	if (time_adjusted) {
+		tt_time_now.hr = tt_time_now.hr - 24;
+		tt_alarm_end.hr = tt_alarm_end.hr - 24;
+	}
+	//debug_string("exiting is_alarm_now()...");
+	return alarm_is_now;
+}
+
+void write_error_to_file(string s_error) {
+	//debug_string("error encountered! writing to file...");
+	std::ofstream fout;
+	string filename = path + "data/error.log";
+	fout.open(filename.c_str(), std::ios::out | std::ios::app);
+	if (fout.is_open()) {
+		fout << s_error << endl;
+		fout.close();
+	}
+	else { cout << "failed to open [error.log]. You got some issues!" << endl; }
+}
+
+void debug_string(string message) {
+	cout << endl << endl << message << endl << endl;
 }
