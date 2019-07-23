@@ -51,11 +51,15 @@ void sound::set_vol(int vol) {
 
 void sound::vol_up() {
 	m_volume = m_volume + m_vol_increment;
+	if (m_volume > 100)
+		m_volume = 100;
 	Mix_VolumeMusic(m_volume);
 }
 
 void sound::vol_down() {
 	m_volume = m_volume - m_vol_increment;
+	if (m_volume < 0)
+		m_volume = 0;
 	Mix_VolumeMusic(m_volume);
 }
 
@@ -78,9 +82,10 @@ void sound::play(std::string filename) {
 void sound::stop() {
 	if (is_playing())
 		Mix_HaltMusic();
-	if (m_music)
+	if (m_music) {
+		set_vol(0);
 		Mix_FreeMusic(m_music);
-	set_vol(0);
+	}
 }
 
 #endif

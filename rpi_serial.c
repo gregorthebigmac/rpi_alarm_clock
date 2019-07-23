@@ -44,7 +44,7 @@ int main(int argc, char *argv[]) {
 	}
 	switch(int_main_return) {
 		case(0) : break;
-		case(1) : printf("Error 1: Initialize failed!\n");
+		case(1) : printf("Error 1: Initialise failed!\n");
 			break;
 		case(2) : printf("Error 2: %s Not found\n", argv[1]);
 			break;

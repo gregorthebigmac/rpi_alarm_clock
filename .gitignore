@@ -33,3 +33,7 @@
 
 # VSCode settings
 *.vscode
+
+# Ignore Binaries
+alarm
+rpi_serial_test

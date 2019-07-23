@@ -25,9 +25,6 @@ int parse_string(string &str_data, char target_char);
 bool is_alarm_now();
 void write_error_to_file(string s_error);
 
-// debug function(s)
-void debug_string(string message);
-
 time_tracker tt_alarm_begin, tt_alarm_end;	// establishing window of alarm period
 time_t t_comp_begin, t_comp_end;	// used for tracking passing of time
 time_tracker tt_time_now;	// current time
@@ -36,20 +33,18 @@ command cmd;
 
 // global variables... deal with it!
 const int overweight  = 182000;	// these are raw ADC readings from load cells, not converted to human-readable units!
-const int underweight = 158000;	// these are raw ADC readings from load cells, not converted to human-readable units!
+const int underweight = 149000;	// these are raw ADC readings from load cells, not converted to human-readable units!
 int weight_reading;
-string path = "/home/$USER/cpp/vscode/alarm_clock/";
+string path = "/home/gfox/cpp/vscode/alarm_clock/";
 string alarm_filename = path + "data/alarm.ogg";
 bool time_to_wake_up = false;
 bool special_time = false;
 
 int main(int argc, char *argv[]) {
-	//debug_string("entering main()...");
 	snd.set_vol(0);
 	snd.set_vol_increment(5);
 	load_alarm_time();
 	while (true) {
-		//debug_string("entering main loop...");
 		get_time_now(tt_time_now);
 		time_to_wake_up = is_alarm_now();
 		if (time_to_wake_up) {
@@ -97,50 +92,38 @@ int main(int argc, char *argv[]) {
 			else { cout << "Weight check failed! I don't know how I got here..." << endl; }
 		}
 		else { cout << "zzz..." << endl; }
-		//debug_string("about to sleep for 2 sec...");
 		usleep(1000 * 2000);	// sleep for 2 sec
-		//debug_string("done sleeping...");
 		cout << endl;
 	}
 	return 0;
 }
 
 int weight_check() {
-	//debug_string("entering weight_check()...");
 	vector<string> serial_weight;
 	vector<string> error_list;
-	//debug_string("entering command...");
 	string cmd_str = "sudo " + path + "rpi_serial getweight";
 	cmd.exec(cmd_str.c_str(), serial_weight, error_list, true);
-	//debug_string("[ok]");
 	if (error_list.size() > 0) {
-		//debug_string("error encountered.");
 		for (int i = 0; i < error_list.size(); i++) {
 			cout << error_list[i] << endl;
 		}
-		//debug_string("exiting weight_check() with error: -1");
 		return -1;
 	}
-	//debug_string("[ok]");
 	std::stringstream str2i(serial_weight[0]);
 	int weight = 0;
 	str2i >> weight;
-	//debug_string("exiting weight_check() [ok]");
 	return weight;
 }
 
 void get_time_now(time_tracker &tt_time) {
-	//debug_string("entering get_time_now()...");
 	time_t t = time(0);
 	struct tm * current_time = localtime ( & t );
 	tt_time.hr = current_time->tm_hour;
 	tt_time.min = current_time->tm_min;
 	tt_time.sec = current_time->tm_sec;
-	//debug_string("exiting get_time_now()...");
 }
 
 void load_alarm_time() {
-	//debug_string("entering load_alarm_time()...");
 	vector<string> alarm_data;
 	std::ifstream fin;
 	string alarm_time_filename = path + "data/alarm.time";
@@ -155,7 +138,6 @@ void load_alarm_time() {
 	}
 	else {
 		write_error_to_file("failed to open [alarm.time]. Please check your file!");
-		//debug_string("exiting load_alarm_time() with error.");
 		return;
 	}
 	if (alarm_data.size() > 0) {
@@ -187,11 +169,9 @@ void load_alarm_time() {
 		}
 	}
 	else { write_error_to_file("Error: alarm.time appears to be empty! Please check data/alarm.time!"); }
-	//debug_string("exiting load_alarm_time()...");
 }
 
 int parse_string(string &str_data, char target_char) {
-	//debug_string("entering parse_string()...");
 	int found = str_data.find(target_char);
 	if (found != string::npos) {
 		string temp_data = str_data.substr(0, found);
@@ -199,7 +179,6 @@ int parse_string(string &str_data, char target_char) {
 		std::stringstream str2i(temp_data);
 		int target_int;
 		str2i >> target_int;
-		//debug_string("exiting parse_string()...");
 		return target_int;
 	}
 	else {
@@ -207,13 +186,11 @@ int parse_string(string &str_data, char target_char) {
 		s_char[0] = target_char;
 		string s_error = "Error: [" + s_char + "] not found in string [" + str_data + "].";
 		write_error_to_file(s_error);
-		//debug_string("exiting parse_string()...");
 		return -1;
 	}
 }
 
 bool is_alarm_now() {
-	//debug_string("entering is_alarm_now()...");
 	bool alarm_is_now = false;
 	bool time_adjusted = false;
 	
@@ -246,12 +223,10 @@ bool is_alarm_now() {
 		tt_time_now.hr = tt_time_now.hr - 24;
 		tt_alarm_end.hr = tt_alarm_end.hr - 24;
 	}
-	//debug_string("exiting is_alarm_now()...");
 	return alarm_is_now;
 }
 
 void write_error_to_file(string s_error) {
-	//debug_string("error encountered! writing to file...");
 	std::ofstream fout;
 	string filename = path + "data/error.log";
 	fout.open(filename.c_str(), std::ios::out | std::ios::app);
@@ -260,8 +235,4 @@ void write_error_to_file(string s_error) {
 		fout.close();
 	}
 	else { cout << "failed to open [error.log]. You got some issues!" << endl; }
-}
-
-void debug_string(string message) {
-	cout << endl << endl << message << endl << endl;
 }
