@@ -32,8 +32,8 @@ sound snd;
 command cmd;
 
 // global variables... deal with it!
-const int overweight  = 191000;	// these are raw ADC readings from load cells, not converted to human-readable units!
-const int underweight = 140000;	// these are raw ADC readings from load cells, not converted to human-readable units!
+const int overweight  = 170000;	// these are raw ADC readings from load cells, not converted to human-readable units!
+const int underweight = 130000;	// these are raw ADC readings from load cells, not converted to human-readable units!
 int weight_reading;
 string path = "/home/gfox/cpp/vscode/alarm_clock/";
 string alarm_filename = path + "data/alarm.ogg";
