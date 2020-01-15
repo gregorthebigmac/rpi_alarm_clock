@@ -35,7 +35,7 @@ command cmd;
 const int overweight  = 170000;	// these are raw ADC readings from load cells, not converted to human-readable units!
 const int underweight = 130000;	// these are raw ADC readings from load cells, not converted to human-readable units!
 int weight_reading;
-string path = "/home/gfox/cpp/vscode/alarm_clock/";
+string path = "/home/gfox/git_repos/rpi_alarm_clock/";
 string alarm_filename = path + "data/alarm.ogg";
 bool time_to_wake_up = false;
 bool special_time = false;
